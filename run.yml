@@ -1,5 +1,5 @@
 ---
-- hosts: localhost
+- hosts: kvm_host
   gather_facts: yes
   become: yes
   remote_user: root

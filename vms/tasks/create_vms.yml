@@ -42,7 +42,7 @@
   with_items: "{{ clients }}"
 
 - name: Find the ip based on the mac
-  connection: local
+#  connection: local
   shell: ip neigh | grep -i "{{ item.stdout }}" |  awk '{print $1}'
   register: ip_vm
   until: ip_vm.stdout | ansible.utils.ipv4
@@ -50,11 +50,11 @@
   delay: 5
   loop:  "{{ mac_vm.results }}"
 
-- name: Store the host key to known hosts
-  connection: local
-  shell: "ssh-keyscan -H {{ item.stdout }} >> ~/.ssh/known_hosts"
-  become: no
-  with_list: "{{ ip_vm.results }}"
+#- name: Store the host key to known hosts
+#  connection: local
+#  shell: "ssh-keyscan -H {{ item.stdout }} >> ~/.ssh/known_hosts"
+#  become: no
+#  with_list: "{{ ip_vm.results }}"
 
 - name: Grow the root partition in vda3 for VM {{ item }}
   shell: growpart /dev/vda 3 && xfs_growfs /
