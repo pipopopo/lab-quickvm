@@ -1,0 +1,22 @@
+---
+- name: Install libguestfs-tools to modify the image
+  dnf:
+    name: libguestfs-tools
+    state: present
+
+- name: Set root password for image and inject an ssh key
+  command: virt-customize -a {{ downloads }}/{{ downloader_list[1].filename }} --root-password password:{{ password }} --ssh-inject root:string:'{{ key }}'
+  become: no 
+
+- name: Create image /var/lib/libvirt/images/{{ item }}.qcow2 based on {{ downloads }}/{{ downloader_list[1].filename }}
+  copy:
+    src: "{{ downloads }}/{{ downloader_list[1].filename }}"
+    dest: /var/lib/libvirt/images/{{ item }}.qcow2
+    owner: qemu
+    group: qemu
+    force: false
+  with_items: "{{ clients }}"
+
+- name: Resize the disk image /var/lib/libvirt/images/{{ item }}.qcow2 increasing with {{ disk_size }}GB
+  command: qemu-img resize /var/lib/libvirt/images/{{ item }}.qcow2 +{{ disk_size }}G
+  with_items: "{{ clients }}"

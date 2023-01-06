@@ -1,0 +1,46 @@
+---
+- name: Checking that offline_token is set
+  fail:
+    msg: |
+      Please, set the variable offline_token prior to executing this playbook
+      Acquire your token at https://access.redhat.com/management/api/  ( https://access.redhat.com/articles/3626371 )
+  when: offline_token is not defined
+
+- name: Login to Red Hat API
+  uri:
+    url: 'https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token'
+    method: POST
+    body_format: form-urlencoded
+    force: true
+    body:
+      grant_type: refresh_token
+      client_id: rhsm-api
+      refresh_token: "{{ offline_token }}"
+  register: login
+
+- name: Collecting the available downloads
+  uri:
+    url: 'https://api.access.redhat.com/management/v1/images/rhel/{{ version }}/{{ arch }}'
+    method: GET
+    return_content: yes
+    headers:
+      Authorization: "Bearer {{ login.json.access_token }}"
+  register: output
+
+- name: Reverse the download list
+  set_fact:
+    downloader_list: "{{ output.json.body | sort(attribute='imageName', reverse=True) }}"
+
+- name: Presence of image
+  ansible.builtin.stat:
+    path: "{{ downloads }}/downloader_list[1].filename"
+  register: qcow2_presence
+
+- name: Downloading the latest "{{ downloader_list[1].imageName }}"
+  get_url:
+    url: "https://api.access.redhat.com/management/v1/images/{{ downloader_list[1].checksum }}/download"
+    dest: "{{ downloads }}"
+    headers:
+      Authorization: "Bearer {{ login.json.access_token }}"
+    timeout: 60
+  when: qcow2_presence == True

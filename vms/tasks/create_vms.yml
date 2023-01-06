@@ -1,0 +1,65 @@
+---
+- name: Grab all VMs
+  community.libvirt.virt:
+    command: list_vms
+  register: all_vms
+
+- name: Inject hostname into each created VM image
+  command: virt-customize -a /var/lib/libvirt/images/{{ item }}.qcow2 --hostname "{{ item }}.{{ domain }}"
+  become: yes
+  with_items: "{{ clients }}"
+  when: "item not in all_vms.list_vms"
+
+- name: Create VM {{ item }}
+  command: >
+    virt-install
+    --memory {{ memory|quote }}
+    --vcpus {{ vcpu|quote }}
+    --name {{ item|quote }}
+    --disk /var/lib/libvirt/images/{{ item|quote }}.qcow2
+    --import
+    --os-variant rhel{{ version|quote }}
+    --virt-type kvm
+    --graphics none
+    --noautoconsole
+#    --network network={{ satellite_clients_network|quote }},model=virtio
+  when: "item not in all_vms.list_vms"
+  with_items: "{{ clients }}"
+
+- name: Make sure the VM is started
+  community.libvirt.virt:
+    name: "{{ item }}"
+    state: running
+  register: vm_started
+  until: "vm_started is success"
+  retries: 10
+  delay: 5
+  with_items: "{{ clients }}"
+
+- name: Find the mac for VM {{ item }} ### Need to grab the mac first to find the IP later
+  shell: virsh domiflist {{ item }} | awk 'NR>2{print $5}' | cut -d "/" -f1
+  register: mac_vm
+  with_items: "{{ clients }}"
+
+- name: Find the ip based on the mac
+  connection: local
+  shell: ip neigh | grep -i "{{ item.stdout }}" |  awk '{print $1}'
+  register: ip_vm
+  until: ip_vm.stdout | ansible.utils.ipv4
+  retries: 10
+  delay: 5
+  loop:  "{{ mac_vm.results }}"
+
+- name: Store the host key to known hosts
+  connection: local
+  shell: "ssh-keyscan -H {{ item.stdout }} >> ~/.ssh/known_hosts"
+  become: no
+  with_list: "{{ ip_vm.results }}"
+
+- name: Grow the root partition in vda3 for VM {{ item }}
+  shell: growpart /dev/vda 3 && xfs_growfs /
+  delegate_to: "{{ item.stdout }}"
+  become: yes
+  remote_user: root
+  when: "item not in all_vms.list_vms"
+  with_list: "{{ ip_vm.results }}"
