@@ -6,7 +6,7 @@
 
 - name: Set root password for image and inject an ssh key
   command: virt-customize -a {{ downloads }}/{{ downloader_list[1].filename }} --root-password password:{{ password }} --ssh-inject root:string:'{{ key }}'
-  become: no 
+  become: yes
 
 - name: Create image /var/lib/libvirt/images/{{ item }}.qcow2 based on {{ downloads }}/{{ downloader_list[1].filename }}
   copy:

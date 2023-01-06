@@ -33,8 +33,12 @@
 
 - name: Presence of image
   ansible.builtin.stat:
-    path: "{{ downloads }}/downloader_list[1].filename"
+    path: "{{ downloads }}/{{downloader_list[1].filename}}"
   register: qcow2_presence
+
+- name: Print return information from the previous task
+  ansible.builtin.debug:
+    var: qcow2_presence
 
 - name: Downloading the latest "{{ downloader_list[1].imageName }}"
   get_url:
@@ -43,4 +47,4 @@
     headers:
       Authorization: "Bearer {{ login.json.access_token }}"
     timeout: 60
-  when: qcow2_presence == True
+  when: not qcow2_presence.stat.exists
