@@ -8,7 +8,7 @@ Requirements
 
 - You need to have a KVM host on which to deploy the VMs
 - You need to have credentials for Red Hat Portal and generate an [offline token](https://access.redhat.com/management/api)
-- The role is meant to be run directly on the KVM host
+- The role is meant to be run against a KVM host
 
 Role Variables
 --------------
