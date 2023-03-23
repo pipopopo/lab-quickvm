@@ -10,7 +10,7 @@
   with_items: "{{ clients }}"
   when: "item not in all_vms.list_vms"
 
-- name: Create VM {{ item }}
+- name: Create VM "{{ item }}"
   command: >
     virt-install
     --memory {{ memory|quote }}
@@ -36,13 +36,12 @@
   delay: 5
   with_items: "{{ clients }}"
 
-- name: Find the mac for VM {{ item }} ### Need to grab the mac first to find the IP later
+- name: Find the mac for VM "{{ item }}" ### Need to grab the mac first to find the IP later
   shell: virsh domiflist {{ item }} | awk 'NR>2{print $5}' | cut -d "/" -f1
   register: mac_vm
   with_items: "{{ clients }}"
 
 - name: Find the ip based on the mac
-#  connection: local
   shell: ip neigh | grep -i "{{ item.stdout }}" |  awk '{print $1}'
   register: ip_vm
   until: ip_vm.stdout | ansible.utils.ipv4
@@ -50,16 +49,28 @@
   delay: 5
   loop:  "{{ mac_vm.results }}"
 
-#- name: Store the host key to known hosts
-#  connection: local
-#  shell: "ssh-keyscan -H {{ item.stdout }} >> ~/.ssh/known_hosts"
-#  become: no
-#  with_list: "{{ ip_vm.results }}"
+- name: Parse major version from release file
+  set_fact:
+    rhel_major_version: "{{ version | regex_replace('^([0-9]+)\\.[0-9]+$', '\\1') }}"
 
-- name: Grow the root partition in vda3 for VM {{ item }}
+- name: Grow the root partition in vda3 for VM "{{ item }}"
   shell: growpart /dev/vda 3 && xfs_growfs /
   delegate_to: "{{ item.stdout }}"
+  delegate_facts: true
   become: yes
   remote_user: root
-  when: "item not in all_vms.list_vms"
+  when:
+    - "item not in all_vms.list_vms"
+    - rhel_major_version == "8"
+  with_list: "{{ ip_vm.results }}"
+
+- name: Grow the root partition in vda4 for VM "{{ item }}"
+  shell: growpart /dev/vda 4 && xfs_growfs /
+  delegate_to: "{{ item.stdout }}"
+  delegate_facts: true
+  become: yes
+  remote_user: root
+  when:
+    - "item not in all_vms.list_vms"
+    - rhel_major_version == "9"
   with_list: "{{ ip_vm.results }}"

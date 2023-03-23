@@ -2,5 +2,5 @@
 # tasks file for kvm
 - include_tasks: enable_ip_forward.yml
 - include_tasks: fetch_qcow.yml
-- include_tasks: modify_qcow.yml 
+- include_tasks: modify_qcow.yml
 - include_tasks: create_vms.yml

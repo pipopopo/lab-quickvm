@@ -27,22 +27,23 @@
       Authorization: "Bearer {{ login.json.access_token }}"
   register: output
 
-- name: Reverse the download list
+- name: Generate download list
   set_fact:
-    downloader_list: "{{ output.json.body | sort(attribute='imageName', reverse=True) }}"
+    downloader_list: "{{ output.json.body | json_query('[?contains(imageName, `KVM`)]') }}"
+  register: downloader_list_output
 
 - name: Presence of image
   ansible.builtin.stat:
-    path: "{{ downloads }}/{{downloader_list[1].filename}}"
+    path: "{{ downloads }}/{{downloader_list[0].filename}}"
   register: qcow2_presence
 
-- name: Print return information from the previous task
+- name: Print image presence
   ansible.builtin.debug:
     var: qcow2_presence
 
-- name: Downloading the latest "{{ downloader_list[1].imageName }}"
+- name: Downloading "{{ downloader_list[0].imageName }}"
   get_url:
-    url: "https://api.access.redhat.com/management/v1/images/{{ downloader_list[1].checksum }}/download"
+    url: "https://api.access.redhat.com/management/v1/images/{{ downloader_list[0].checksum }}/download"
     dest: "{{ downloads }}"
     headers:
       Authorization: "Bearer {{ login.json.access_token }}"
